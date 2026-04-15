@@ -1,10 +1,10 @@
-using '../../../Infrastructure/containerApp.bicep'
+using 'containerApp.bicep'
 
 param location = 'westeurope'
 param imageName = '{{servername}}'
 param appName = '{{servername}}'
-param environmentName = 'TODO-container-apps-environment-name'
-param resourceGroupName = 'TODO-resource-group-name'
+param environmentName = '{{EnvironmentName}}'
+param resourceGroupName = '{{ResourceGroupName}}'
 param keyVaultSecrets = [
   {
     key: '{{servername}}apikey' // Must be lowercase - used in secretRef

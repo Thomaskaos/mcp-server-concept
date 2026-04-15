@@ -36,6 +36,18 @@ module acr 'br/public:avm/res/container-registry/registry:0.9.1' = {
     acrSku: 'Basic'
     publicNetworkAccess: 'Enabled'
     networkRuleBypassOptions: 'AzureServices'
+    roleAssignments: [
+      {
+        principalId: containerAppsEnv.outputs.systemAssignedMIPrincipalId
+        principalType: 'ServicePrincipal'
+        roleDefinitionIdOrName: 'AcrPull'
+      }
+      { 
+        principalId: deployer().objectId
+        principalType: 'User'
+        roleDefinitionIdOrName: 'AcrPush'
+      }
+    ]
   }
 }
 

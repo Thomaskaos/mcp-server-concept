@@ -1,6 +1,7 @@
 using {{ServerName}};
 using {{ServerName}}.Services;
 using MCPServers.Shared.Extensions;
+using MCPServers.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +11,7 @@ if (builder.Environment.IsDevelopment())
     builder.Logging.AddDebug();
 }
 
-var configuration = ConfigurationExtensions.BuildMcpConfiguration(includeEnvironmentVariables: true);
+var configuration = MCPServers.Shared.Extensions.ConfigurationExtensions.BuildMcpConfiguration(includeEnvironmentVariables: true);
 builder.Services.AddSingleton<IConfiguration>(configuration);
 
 builder.Services.AddHttpClient();
@@ -20,7 +21,20 @@ builder.Services.AddScoped<{{ServerName}}Service>();
 
 builder.Services.AddMcpOpenTelemetry(builder.Logging);
 
-builder.Services.AddMcpAuthentication(configuration, validateIssuer: true);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<TokenContextAccessor>();
+builder.Services.AddMcpAuthentication(
+    configuration,
+    onTokenValidated: context =>
+    {
+        var tokenContextAccessor = context.HttpContext.RequestServices
+            .GetRequiredService<TokenContextAccessor>();
+        tokenContextAccessor.SetTokenValidatedContext(context);
+        return Task.CompletedTask;
+    },
+    validateIssuer: true
+);
+
 
 builder.Services.AddAuthorization();
 

@@ -5,7 +5,7 @@
 .DESCRIPTION
     Creates all required files for a new MCP Server by:
     - Copying and processing auth-variant templates from .github/templates/mcp-server/
-    - Replacing {{ServerName}}, {{servername}}, {{Port}}, {{ApiConfigSection}} tokens
+    - Replacing {{ServerName}}, {{servername}}, {{Port}}, {{ApiConfigSection}}, {{EnvironmentName}}, {{ResourceGroupName}} tokens
     - Creating the Infrastructure bicep parameter file
     - Creating the GitHub Actions workflow
     - Creating the Copilot Studio custom connector swagger file
@@ -72,6 +72,7 @@ $ErrorActionPreference = 'Stop'
 $serverNameLower    = $ServerName.ToLower()
 $repoRoot           = Split-Path -Parent $PSScriptRoot
 $templateDir        = Join-Path $repoRoot '.github' 'templates' 'mcp-server'
+$devBicepParamPath  = Join-Path $repoRoot 'Infrastructure' 'dev.bicepparam'
 
 # ApiConfigSection is only meaningful for apikey and noauth types
 if ($AuthType -eq 'obo') {
@@ -95,9 +96,33 @@ $launchJsonPath     = Join-Path $repoRoot '.vscode'          'launch.json'
 $createdFiles       = [System.Collections.Generic.List[string]]::new()
 $createdDirectories = [System.Collections.Generic.List[string]]::new()
 
+# Defaults copied into new server bicepparam files from Infrastructure/dev.bicepparam
+[string]$environmentNameDefault = ''
+[string]$resourceGroupNameDefault = ''
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+function Get-BicepParamValue {
+    param(
+        [string]$FilePath,
+        [string]$ParamName
+    )
+
+    if (-not (Test-Path $FilePath)) {
+        throw "Bicep parameter file not found: $FilePath"
+    }
+
+    $content = Get-Content -Path $FilePath -Raw -Encoding UTF8
+    $pattern = "(?m)^\s*param\s+$([regex]::Escape($ParamName))\s*=\s*'([^']+)'\s*$"
+    $match = [regex]::Match($content, $pattern)
+    if (-not $match.Success) {
+        throw "Could not find param '$ParamName' in $FilePath"
+    }
+
+    return $match.Groups[1].Value
+}
+
 function Replace-Tokens {
     param([string]$Content)
     $Content = $Content -creplace '\{\{ServerName\}\}',       $ServerName
@@ -105,6 +130,8 @@ function Replace-Tokens {
     $Content = $Content -creplace '\{\{SERVERNAME\}\}',       $ServerName.ToUpper()
     $Content = $Content -creplace '\{\{Port\}\}',             $Port
     $Content = $Content -creplace '\{\{ApiConfigSection\}\}', $ApiConfigSection
+    $Content = $Content -creplace '\{\{EnvironmentName\}\}',  $environmentNameDefault
+    $Content = $Content -creplace '\{\{ResourceGroupName\}\}', $resourceGroupNameDefault
     return $Content
 }
 
@@ -191,6 +218,17 @@ if (-not (Test-Path $templateDir)) {
     Write-Error "Template directory not found: $templateDir"
     exit 1
 }
+
+try {
+    $environmentNameDefault = Get-BicepParamValue -FilePath $devBicepParamPath -ParamName 'containerAppsEnvName'
+    $resourceGroupNameDefault = Get-BicepParamValue -FilePath $devBicepParamPath -ParamName 'resourceGroupName'
+} catch {
+    Write-Error "Failed to read default environmentName/resourceGroupName from $devBicepParamPath. $_"
+    exit 1
+}
+
+Write-Host "  Env name   : $environmentNameDefault" -ForegroundColor Gray
+Write-Host "  RG name    : $resourceGroupNameDefault" -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
 # Main
@@ -295,7 +333,7 @@ try {
     }
     Write-Host ''
     Write-Host 'Next steps:' -ForegroundColor Cyan
-    Write-Host "  1. Fill in the TODO values in Infrastructure/containerApp-${ServerName}.bicepparam"
+    Write-Host "  1. Review Infrastructure/containerApp-${ServerName}.bicepparam (environmentName and resourceGroupName were prefilled from Infrastructure/dev.bicepparam)"
     switch ($AuthType) {
         'obo' {
             Write-Host "  2. Create Key Vault secrets: ${serverNameLower}clientid, ${serverNameLower}clientsecret, ${serverNameLower}tenantid"

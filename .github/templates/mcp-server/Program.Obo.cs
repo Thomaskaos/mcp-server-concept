@@ -18,17 +18,12 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient());
 
-// Register OBO token exchange services
-builder.Services.AddScoped<TokenContextAccessor>();
-builder.Services.AddScoped<TokenExchangeService>();
-
 builder.Services.AddScoped<{{ServerName}}Service>();
 
 builder.Services.AddMcpOpenTelemetry(builder.Logging);
 
-var serverUrl = configuration["ServerUrl"] ?? "http://0.0.0.0:{{Port}}";
-var publicUrl = configuration["EntraIdAuth:PublicUrl"] ?? serverUrl;
-
+builder.Services.AddScoped<TokenContextAccessor>();
+builder.Services.AddScoped<TokenExchangeService>();
 builder.Services.AddMcpAuthentication(
     configuration,
     onTokenValidated: context =>
@@ -52,6 +47,8 @@ var app = builder.Build();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+var serverUrl = configuration["ServerUrl"] ?? "http://0.0.0.0:4547";
 
 Console.WriteLine($"Starting MCP server with OBO token exchange at {serverUrl}");
 Console.WriteLine($"Public URL: {publicUrl}");

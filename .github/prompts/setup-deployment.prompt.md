@@ -112,19 +112,7 @@ param storageAccountName  = 'st{EnvironmentName}'
 
 ---
 
-## Step 5 — Deploy shared infrastructure
-
-```
-az deployment sub create --name mcp-shared-env --location {Location} --template-file Infrastructure/main.bicep --parameters Infrastructure/dev.bicepparam
-```
-
-This deploys the resource group and the following shared resources: Azure Container Registry, Log Analytics Workspace, Application Insights, Container Apps Environment, Key Vault, Storage Account, and User-Assigned Managed Identity.
-
-This command may take several minutes. Wait for it to complete before continuing.
-
----
-
-## Step 6 — Create service principal
+## Step 5 — Create service principal
 
 Run the following command and **capture the JSON output into a variable**. Do NOT print the JSON to the terminal or display it in the chat — it contains the client secret.
 
@@ -138,27 +126,19 @@ Store the complete JSON output in a shell variable named `SP_JSON`. Do not write
 
 ---
 
-## Step 7 — Assign AcrPush on the Container Registry
+## Step 6 — Assign Owner role to service principal
 
-Extract the `clientId` field from `SP_JSON` and assign the `AcrPush` role to the service principal on the ACR resource:
+Extract the `clientId` field from `SP_JSON` and assign the `Owner` role to the service principal at subscription scope. This allows the GitHub Actions workflow to create role assignments for the MCP servers:
 
 ```
-az role assignment create --assignee {clientId from SP_JSON} --role AcrPush --scope $(az acr show --name {EnvironmentName} --query id -o tsv)
+az role assignment create --assignee {clientId from SP_JSON} --role Owner --scope /subscriptions/{SubscriptionId}
 ```
+
+The Bicep template will reference the deployment identity inline to assign the `AcrPush` role during the GitHub Actions deployment.
 
 ---
 
-## Step 8 — Assign Contributor on the subscription
-
-Assign the `Contributor` role to the service principal at subscription scope so it can run the Bicep deployments from GitHub Actions:
-
-```
-az role assignment create --assignee {clientId from SP_JSON} --role Contributor --scope /subscriptions/{SubscriptionId}
-```
-
----
-
-## Step 9 — Store credentials in GitHub
+## Step 7 — Store credentials in GitHub
 
 Pipe `SP_JSON` directly to the GitHub CLI without writing to disk or displaying in the terminal. This keeps the client secret entirely out of terminal history and the file system:
 
@@ -177,23 +157,41 @@ Clear `SP_JSON` from the shell variable after use.
 
 ---
 
-## Step 10 — Print completion checklist
+## Step 8 — Print completion checklist
 
 Print a checklist of every action completed. Mark each item ✅:
 
 ```
 ✅ Infrastructure/dev.bicepparam updated
-✅ Shared infrastructure deployed to rg-{EnvironmentName}
-   — ACR: {EnvironmentName}.azurecr.io
-   — Container Apps Environment: {EnvironmentName}
-   — Key Vault: {EnvironmentName}
 ✅ Service principal sp-mcp-{EnvironmentName} created
-✅ AcrPush role assigned to SP on {EnvironmentName} ACR
-✅ Contributor role assigned to SP on subscription {SubscriptionId}
+✅ Owner role assigned to SP on subscription {SubscriptionId}
 ✅ AZURE_CREDENTIALS secret set in GitHub Actions
 ✅ ACR_NAME_DEV variable set to {EnvironmentName}
 ✅ ACR_NAME_PROD variable set to {EnvironmentName}
 ```
 
+---
+
+## Step 9 — Commit and push to trigger deployment
+
+Review your changes:
+
+```
+git status
+```
+
+You should see `Infrastructure/dev.bicepparam` modified. Commit and push the changes:
+
+```
+git add Infrastructure/dev.bicepparam
+git commit -m "Configure MCP environment: {EnvironmentName}"
+git push
+```
+
+This will trigger the **Deploy Bicep Template** workflow in GitHub Actions. The workflow will:
+1. Deploy the shared infrastructure to Azure (ACR, Container Apps Environment, Key Vault, Log Analytics, etc.)
+
+Monitor the workflow in the **Actions** tab of your repository.
+
 Then print:
-> **Next step:** run **/new-mcp-server** to scaffold your first MCP server.
+> **Next step:** Once the GitHub Actions workflow completes successfully, run **/new-mcp-server** to scaffold your first MCP server.
