@@ -25,7 +25,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
 
-      - name: Deployment
+      - name: Deploy Dev environment
         uses: azure/bicep-deploy@4d5dc29bf04d05546dd5df9c665c54b9c5213207 # v2.2.0
         with:
             type: deployment
@@ -36,3 +36,15 @@ jobs:
             subscription-id: ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
             template-file: ./Infrastructure/main.bicep
             parameters-file: ./Infrastructure/dev.bicepparam
+
+      - name: Deploy Prod environment
+        uses: azure/bicep-deploy@4d5dc29bf04d05546dd5df9c665c54b9c5213207 # v2.2.0
+        with:
+            type: deployment
+            operation: create
+            name: Production
+            location: westeurope
+            scope: subscription
+            subscription-id: ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
+            template-file: ./Infrastructure/main.bicep
+            parameters-file: ./Infrastructure/prod.bicepparam

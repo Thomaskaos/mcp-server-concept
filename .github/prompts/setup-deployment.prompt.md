@@ -11,14 +11,24 @@ You are provisioning the shared MCP infrastructure for this repository and wirin
 
 ## Step 1 — Collect inputs
 
-Call the `vscode_askQuestions` tool with exactly these three questions:
+Call the `vscode_askQuestions` tool with exactly these five questions:
 
 ```json
 {
   "questions": [
     {
-      "header": "EnvironmentName",
-      "question": "Short name for this deployment ring (e.g. mymcpenv). Rules: 5–22 characters, lowercase letters and digits only, no hyphens or underscores. This name is used directly as the ACR name, Key Vault name, Container Apps environment name, and Log Analytics name. A 'st' prefix is added for the Storage Account name, so the effective Storage Account name will be 'st{EnvironmentName}' (max 24 chars).",
+      "header": "DevEnvironmentName",
+      "question": "Short name for the dev environment (e.g. mymcpdev). Rules: 5–22 characters, lowercase letters and digits only, no hyphens or underscores. Used as the Key Vault name, Container Apps environment name, Log Analytics name, and Storage Account prefix for the dev environment.",
+      "allowFreeformInput": true
+    },
+    {
+      "header": "ProdEnvironmentName",
+      "question": "Short name for the prod environment (e.g. mymcpprod). Same rules as the dev name. Must be different from the dev name.",
+      "allowFreeformInput": true
+    },
+    {
+      "header": "AcrName",
+      "question": "Short name for the shared Azure Container Registry (e.g. mymcpacr). Rules: 5–50 characters, alphanumeric only. Globally unique — this ACR is shared by both dev and prod. A 'rg-' prefix is used for the registry resource group name.",
       "allowFreeformInput": true
     },
     {
@@ -43,22 +53,30 @@ Call the `vscode_askQuestions` tool with exactly these three questions:
 ```
 
 Validate the inputs:
-- **EnvironmentName** must match `^[a-z0-9]{5,22}$`. If it does not, stop and ask the user to correct it.
+- **DevEnvironmentName** must match `^[a-z0-9]{5,22}$`. If it does not, stop and ask the user to correct it.
+- **ProdEnvironmentName** must match `^[a-z0-9]{5,22}$` and must differ from **DevEnvironmentName**. If it does not, stop and ask the user to correct it.
+- **AcrName** must match `^[a-z0-9]{5,50}$`. If it does not, stop and ask the user to correct it.
 - **SubscriptionId** must be a valid GUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`). If it does not look like a GUID, stop and ask the user to correct it.
 
 Derive the remaining resource names:
 
 | Parameter | Value |
 |---|---|
-| `acrName` | `{EnvironmentName}` |
-| `containerAppsEnvName` | `{EnvironmentName}` |
-| `keyVaultName` | `{EnvironmentName}` |
-| `logAnalyticsName` | `{EnvironmentName}` |
-| `storageAccountName` | `st{EnvironmentName}` |
-| `resourceGroupName` | `rg-{EnvironmentName}` |
+| `acrName` | `{AcrName}` (shared across dev and prod) |
+| `acrResourceGroupName` | `rg-{AcrName}` |
+| Dev `containerAppsEnvName` | `{DevEnvironmentName}` |
+| Dev `keyVaultName` | `{DevEnvironmentName}` |
+| Dev `logAnalyticsName` | `{DevEnvironmentName}` |
+| Dev `storageAccountName` | `st{DevEnvironmentName}` |
+| Dev `resourceGroupName` | `rg-{DevEnvironmentName}` |
+| Prod `containerAppsEnvName` | `{ProdEnvironmentName}` |
+| Prod `keyVaultName` | `{ProdEnvironmentName}` |
+| Prod `logAnalyticsName` | `{ProdEnvironmentName}` |
+| Prod `storageAccountName` | `st{ProdEnvironmentName}` |
+| Prod `resourceGroupName` | `rg-{ProdEnvironmentName}` |
 
 Echo the resolved values before proceeding:
-> Provisioning **{EnvironmentName}** in **{Location}** — subscription `{SubscriptionId}`
+> Provisioning **{DevEnvironmentName}** (dev) and **{ProdEnvironmentName}** (prod) with shared registry **{AcrName}** in **{Location}** — subscription `{SubscriptionId}`
 
 ---
 
@@ -94,20 +112,42 @@ az account set --subscription {SubscriptionId}
 
 ---
 
-## Step 4 — Update Infrastructure/dev.bicepparam
+## Step 4 — Update Infrastructure/dev.bicepparam and Infrastructure/prod.bicepparam
 
 Read `Infrastructure/dev.bicepparam`. Replace the entire file contents with the following, substituting the resolved values:
 
 ```bicep
 using 'main.bicep'
 
-param acrName             = '{EnvironmentName}'
-param containerAppsEnvName = '{EnvironmentName}'
-param keyVaultName        = '{EnvironmentName}'
-param logAnalyticsName    = '{EnvironmentName}'
+// Shared registry — keep acrName and acrResourceGroupName identical in prod.bicepparam
+param acrName             = '{AcrName}'
+param acrResourceGroupName = 'rg-{AcrName}'
+
+// Dev-environment resources
+param containerAppsEnvName = '{DevEnvironmentName}'
+param keyVaultName        = '{DevEnvironmentName}'
+param logAnalyticsName    = '{DevEnvironmentName}'
 param location            = '{Location}'
-param resourceGroupName   = 'rg-{EnvironmentName}'
-param storageAccountName  = 'st{EnvironmentName}'
+param resourceGroupName   = 'rg-{DevEnvironmentName}'
+param storageAccountName  = 'st{DevEnvironmentName}'
+```
+
+Read `Infrastructure/prod.bicepparam`. Replace the entire file contents with the following, substituting the resolved values:
+
+```bicep
+using 'main.bicep'
+
+// Shared registry — keep acrName and acrResourceGroupName identical to dev.bicepparam
+param acrName             = '{AcrName}'
+param acrResourceGroupName = 'rg-{AcrName}'
+
+// Prod-environment resources
+param containerAppsEnvName = '{ProdEnvironmentName}'
+param keyVaultName        = '{ProdEnvironmentName}'
+param logAnalyticsName    = '{ProdEnvironmentName}'
+param location            = '{Location}'
+param resourceGroupName   = 'rg-{ProdEnvironmentName}'
+param storageAccountName  = 'st{ProdEnvironmentName}'
 ```
 
 ---
@@ -117,7 +157,7 @@ param storageAccountName  = 'st{EnvironmentName}'
 Run the following command and **capture the JSON output into a variable**. Do NOT print the JSON to the terminal or display it in the chat — it contains the client secret.
 
 ```
-az ad sp create-for-rbac --name "sp-mcp-{EnvironmentName}" --json-auth --output json
+az ad sp create-for-rbac --name "sp-mcp-{AcrName}" --json-auth --output json
 ```
 
 Store the complete JSON output in a shell variable named `SP_JSON`. Do not write it to disk.
@@ -146,11 +186,11 @@ Pipe `SP_JSON` directly to the GitHub CLI without writing to disk or displaying 
 echo {SP_JSON} | gh secret set AZURE_CREDENTIALS --app actions
 ```
 
-Set the ACR name as GitHub Actions repository variables for both environments (both pointing to the same registry — split them into separate environments later if needed):
+Set the shared ACR name as GitHub Actions repository variables for both environments (both point to the same registry):
 
 ```
-gh variable set ACR_NAME_DEV --body "{EnvironmentName}"
-gh variable set ACR_NAME_PROD --body "{EnvironmentName}"
+gh variable set ACR_NAME_DEV --body "{AcrName}"
+gh variable set ACR_NAME_PROD --body "{AcrName}"
 ```
 
 Clear `SP_JSON` from the shell variable after use.
@@ -175,11 +215,12 @@ Print a checklist of every action completed. Mark each item ✅:
 
 ```
 ✅ Infrastructure/dev.bicepparam updated
-✅ Service principal sp-mcp-{EnvironmentName} created
+✅ Infrastructure/prod.bicepparam updated
+✅ Service principal sp-mcp-{AcrName} created
 ✅ Owner role assigned to SP on subscription {SubscriptionId}
 ✅ AZURE_CREDENTIALS secret set in GitHub Actions
-✅ ACR_NAME_DEV variable set to {EnvironmentName}
-✅ ACR_NAME_PROD variable set to {EnvironmentName}
+✅ ACR_NAME_DEV variable set to {AcrName}
+✅ ACR_NAME_PROD variable set to {AcrName}
 ✅ Workflow templates copied to .github/workflows/
 ```
 
@@ -193,11 +234,11 @@ Review your changes:
 git status
 ```
 
-You should see `Infrastructure/dev.bicepparam` modified and the three workflow files in `.github/workflows/`. Commit and push the changes:
+You should see `Infrastructure/dev.bicepparam` and `Infrastructure/prod.bicepparam` modified and the three workflow files in `.github/workflows/`. Commit and push the changes:
 
 ```
-git add Infrastructure/dev.bicepparam .github/workflows/
-git commit -m "Configure MCP environment: {EnvironmentName}"
+git add Infrastructure/dev.bicepparam Infrastructure/prod.bicepparam .github/workflows/
+git commit -m "Configure MCP environments: {DevEnvironmentName} (dev) and {ProdEnvironmentName} (prod) with shared registry {AcrName}"
 git push
 ```
 
