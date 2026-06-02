@@ -70,7 +70,7 @@ jobs:
 
   deploy-prod:
     name: "Deploy Prod environment"
-    needs: [check-prod-deployed]
+    needs: [deploy-dev, check-prod-deployed]
     if: github.event_name == 'release' || needs.check-prod-deployed.outputs.exists == 'false'
     concurrency:
       group: azure-deploy-prod
