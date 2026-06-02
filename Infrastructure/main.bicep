@@ -52,7 +52,7 @@ module acr 'br/public:avm/res/container-registry/registry:0.9.1' = {
       }
       { 
         principalId: deployer().objectId
-        principalType: 'ServicePrincipal'
+        principalType: 'User'
         roleDefinitionIdOrName: 'AcrPush'
       }
     ]
@@ -97,6 +97,15 @@ module containerAppsEnv 'br/public:avm/res/app/managed-environment:0.11.2' = {
       }
     }
     managedIdentities: { systemAssigned: true }
+  }
+}
+
+module uma 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.2' = {
+  name: 'userAssignedManagedIdentity'
+  scope: resourceGroup
+  params: {
+    name: 'umi-${containerAppsEnvName}'
+    location: location
   }
 }
 
@@ -157,11 +166,4 @@ module st 'br/public:avm/res/storage/storage-account:0.27.1' = {
   }
 }
 
-module uma 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.2' = {
-  name: 'userAssignedManagedIdentity'
-  scope: resourceGroup
-  params: {
-    name: 'umi-${containerAppsEnvName}'
-    location: location
-  }
-}
+
