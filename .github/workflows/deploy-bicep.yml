@@ -71,7 +71,7 @@ jobs:
   deploy-prod:
     name: "Deploy Prod environment"
     needs: [deploy-dev, check-prod-deployed]
-    if: github.event_name == 'release' || needs.check-prod-deployed.outputs.exists == 'false'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || needs.check-prod-deployed.outputs.exists == 'false'
     concurrency:
       group: azure-deploy-prod
       cancel-in-progress: false
