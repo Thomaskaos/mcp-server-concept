@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "TODO-public-url-after-first-deploy"
+      "url": "https://kangaroomcp.delightfulsand-e02e942e.swedencentral.azurecontainapps.io"
     }
   ],
   "paths": {
@@ -30,10 +30,11 @@
         "type": "oauth2",
         "flows": {
           "authorizationCode": {
-            "authorizationUrl": "https://login.microsoftonline.com/TODO-tenant-id/oauth2/v2.0/authorize",
-            "tokenUrl": "https://login.microsoftonline.com/TODO-tenant-id/oauth2/v2.0/token",
+            "authorizationUrl": "https://login.microsoftonline.com/b3f0b16b-81f9-4c36-a9ba-2b7fc139f0cb/oauth2/v2.0/authorize",
+            "tokenUrl": "https://login.microsoftonline.com/b3f0b16b-81f9-4c36-a9ba-2b7fc139f0cb/oauth2/v2.0/token",
+            "refreshUrl": "https://login.microsoftonline.com/b3f0b16b-81f9-4c36-a9ba-2b7fc139f0cb/oauth2/v2.0/token",
             "scopes": {
-              "api://TODO-client-id/mcp.access": "Access KangarooMCP MCP Server"
+              "api://db562a29-534d-4186-a78c-3044138ad0d1/mcp.access": "Access KangarooMCP MCP Server"
             }
           }
         }
@@ -43,7 +44,7 @@
   "security": [
     {
       "oauth2": [
-        "api://TODO-client-id/mcp.access"
+        "api://db562a29-534d-4186-a78c-3044138ad0d1/mcp.access"
       ]
     }
   ]
