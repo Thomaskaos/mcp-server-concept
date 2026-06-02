@@ -1,4 +1,15 @@
 {
   "version": "2.0.0",
-  "tasks": []
+  "tasks": [
+    {
+      "label": "build KangarooMCP",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/MCPServers/KangarooMCP/KangarooMCP.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    }
+  ]
 }
